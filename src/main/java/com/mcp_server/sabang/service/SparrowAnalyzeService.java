@@ -39,6 +39,8 @@ import org.w3c.dom.NodeList;
 @Service
 public class SparrowAnalyzeService {
 
+    private static final int MAX_PROCESS_LOG_LENGTH = 4000;
+
     private final ExecutorService executor = Executors.newCachedThreadPool();
     private final Map<String, SparrowJobState> jobs = new ConcurrentHashMap<>();
 
@@ -82,14 +84,15 @@ public class SparrowAnalyzeService {
 
         try {
             Process process = processBuilder.start();
-            
+
             String output = readStream(process.getInputStream());
             String error = readStream(process.getErrorStream());
 
             int exitCode = process.waitFor();
             SparrowAnalyzeReport report = parseReport(processBuilder.directory().toPath());
 
-            return new SparrowAnalyzeResponse(request.projectId(), exitCode, output, error, report);
+            // stdout is usually too noisy for MCP responses; keep it empty and preserve only concise stderr.
+            return new SparrowAnalyzeResponse(request.projectId(), exitCode, "", error, report);
         } catch (IOException ex) {
             throw new SparrowExecutionException("Failed to execute SPARROW client", ex);
         } catch (InterruptedException ex) {
@@ -146,7 +149,7 @@ public class SparrowAnalyzeService {
         command.add(request.passwordPath());
         command.add("-SD");
         command.add(request.changedFiles());
-        
+
         return command;
     }
 
@@ -169,13 +172,19 @@ public class SparrowAnalyzeService {
     private String readStream(java.io.InputStream inputStream) throws IOException {
         StringBuilder result = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
+            new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
             String line;
             while ((line = reader.readLine()) != null) {
+                if (result.length() >= MAX_PROCESS_LOG_LENGTH) {
+                    continue;
+                }
                 result.append(line).append(System.lineSeparator());
             }
         }
-        return result.toString();
+        if (result.length() <= MAX_PROCESS_LOG_LENGTH) {
+            return result.toString();
+        }
+        return result.substring(0, MAX_PROCESS_LOG_LENGTH) + System.lineSeparator() + "...(truncated)";
     }
 
     private SparrowAnalyzeReport parseReport(Path workingDirectory) {
@@ -214,8 +223,8 @@ public class SparrowAnalyzeService {
                 String descriptionId = desc == null ? "" : trim(desc.getAttribute("id"));
                 boolean lineReviewRecommended = file != null && !file.isBlank() && line != null && line > 0;
                 String lineReviewReason = lineReviewRecommended
-                        ? "Potential defect location from SPARROW alarm"
-                        : "Line information is missing in SPARROW alarm";
+                    ? "Potential defect location from SPARROW alarm"
+                    : "Line information is missing in SPARROW alarm";
 
                 if (lineReviewRecommended) {
                     lineReviewCandidates++;
@@ -224,24 +233,24 @@ public class SparrowAnalyzeService {
                 incrementCount(alarmsByFile, emptyToUnknown(file));
 
                 issues.add(new SparrowAnalyzeIssue(
-                        localId,
-                        rule,
-                        file,
-                        line,
-                        function,
-                        className,
-                        tag,
-                        descriptionId,
-                        lineReviewRecommended,
-                        lineReviewReason
+                    localId,
+                    rule,
+                    file,
+                    line,
+                    function,
+                    className,
+                    tag,
+                    descriptionId,
+                    lineReviewRecommended,
+                    lineReviewReason
                 ));
             }
 
             SparrowAnalyzeSummary summary = new SparrowAnalyzeSummary(
-                    alarms.getLength(),
-                    lineReviewCandidates,
-                    alarmsByRule,
-                    alarmsByFile
+                alarms.getLength(),
+                lineReviewCandidates,
+                alarmsByRule,
+                alarmsByFile
             );
             return new SparrowAnalyzeReport(reportPath.toString(), summary, issues);
         } catch (Exception ex) {
