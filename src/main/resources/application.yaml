@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: sabang
+  main:
+    banner-mode: off
+  ai:
+    mcp:
+      server:
+        stdio: true
+        keep-alive-interval: 5s
