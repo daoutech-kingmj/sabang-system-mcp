@@ -1,0 +1,61 @@
+name: "Bug Report"
+description: 버그 제보용 템플릿
+labels: ["bug"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: 어떤 문제가 발생했는지 간단히 작성해주세요.
+      placeholder: 예) 사용자 조회 API가 500 에러를 반환합니다.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: 재현 절차를 순서대로 작성해주세요.
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: 기대했던 동작을 작성해주세요.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: 실제 동작/오류 메시지를 작성해주세요.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Screenshots
+      description: 관련 로그, 스택트레이스, 스크린샷이 있으면 첨부해주세요.
+      render: shell
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: 영향받는 버전/커밋 SHA
+      placeholder: 예) v1.2.3 / a1b2c3d
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: 실행 환경(OS, JDK, DB 등)
+      placeholder: 예) macOS 14, JDK 17, MySQL 8.0
