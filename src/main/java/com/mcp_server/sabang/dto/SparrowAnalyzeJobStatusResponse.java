@@ -12,7 +12,8 @@ public record SparrowAnalyzeJobStatusResponse(
         Integer exitCode,
         String output,
         String error,
-        String message
+        String message,
+        SparrowAnalyzeReport report
 ) {
 
 }

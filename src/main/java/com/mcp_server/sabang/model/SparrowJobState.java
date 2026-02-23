@@ -1,10 +1,15 @@
 package com.mcp_server.sabang.model;
 
 import com.mcp_server.sabang.dto.SparrowAnalyzeJobStatusResponse;
+import com.mcp_server.sabang.dto.SparrowAnalyzeReport;
 import com.mcp_server.sabang.dto.SparrowAnalyzeResponse;
+import com.mcp_server.sabang.dto.SparrowAnalyzeSummary;
 import java.time.Instant;
+import java.util.Collections;
 
 public final class SparrowJobState {
+
+    private static final int MAX_LOG_LENGTH = 4000;
     private final Object monitor = new Object();
     private final String jobId;
     private final String projectId;
@@ -16,6 +21,7 @@ public final class SparrowJobState {
     private volatile String output;
     private volatile String error;
     private volatile String message;
+    private volatile SparrowAnalyzeReport report;
 
     private SparrowJobState(String jobId, String projectId) {
         this.jobId = jobId;
@@ -28,6 +34,7 @@ public final class SparrowJobState {
         this.output = "";
         this.error = "";
         this.message = "";
+        this.report = emptyReport();
     }
 
     public static SparrowJobState pending(String jobId, String projectId) {
@@ -50,8 +57,9 @@ public final class SparrowJobState {
         synchronized (monitor) {
             this.status = "SUCCEEDED";
             this.exitCode = response.exitCode();
-            this.output = response.output();
-            this.error = response.error();
+            this.output = truncate(response.output());
+            this.error = truncate(response.error());
+            this.report = response.report() == null ? emptyReport() : response.report();
             this.finishedAt = Instant.now();
             monitor.notifyAll();
         }
@@ -61,9 +69,10 @@ public final class SparrowJobState {
         synchronized (monitor) {
             this.status = "FAILED";
             this.exitCode = response.exitCode();
-            this.output = response.output();
-            this.error = response.error();
+            this.output = truncate(response.output());
+            this.error = truncate(response.error());
             this.message = message;
+            this.report = response.report() == null ? emptyReport() : response.report();
             this.finishedAt = Instant.now();
             monitor.notifyAll();
         }
@@ -73,9 +82,29 @@ public final class SparrowJobState {
         synchronized (monitor) {
             this.status = "FAILED";
             this.message = ex.getMessage();
+            this.output = "";
+            this.error = "";
+            this.report = emptyReport();
             this.finishedAt = Instant.now();
             monitor.notifyAll();
         }
+    }
+
+    private static SparrowAnalyzeReport emptyReport() {
+        return new SparrowAnalyzeReport(
+            "",
+            new SparrowAnalyzeSummary(0, 0, Collections.emptyMap(), Collections.emptyMap()), Collections.emptyList()
+        );
+    }
+
+    private static String truncate(String value) {
+        if (value == null) {
+            return "";
+        }
+        if (value.length() <= MAX_LOG_LENGTH) {
+            return value;
+        }
+        return value.substring(0, MAX_LOG_LENGTH) + System.lineSeparator() + "...(truncated)";
     }
 
     public boolean isTerminal() {
@@ -97,16 +126,17 @@ public final class SparrowJobState {
 
     public SparrowAnalyzeJobStatusResponse toResponse() {
         return new SparrowAnalyzeJobStatusResponse(
-                jobId,
-                projectId,
-                status,
-                createdAt,
-                startedAt,
-                finishedAt,
-                exitCode,
-                output,
-                error,
-                message
+            jobId,
+            projectId,
+            status,
+            createdAt,
+            startedAt,
+            finishedAt,
+            exitCode,
+            output,
+            error,
+            message,
+            report
         );
     }
 }
