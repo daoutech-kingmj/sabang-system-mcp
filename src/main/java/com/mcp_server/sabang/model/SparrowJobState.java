@@ -8,8 +8,6 @@ import java.time.Instant;
 import java.util.Collections;
 
 public final class SparrowJobState {
-
-    private static final int MAX_LOG_LENGTH = 4000;
     private final Object monitor = new Object();
     private final String jobId;
     private final String projectId;
@@ -57,8 +55,8 @@ public final class SparrowJobState {
         synchronized (monitor) {
             this.status = "SUCCEEDED";
             this.exitCode = response.exitCode();
-            this.output = truncate(response.output());
-            this.error = truncate(response.error());
+            this.output = response.output();
+            this.error = response.error();
             this.report = response.report() == null ? emptyReport() : response.report();
             this.finishedAt = Instant.now();
             monitor.notifyAll();
@@ -69,8 +67,8 @@ public final class SparrowJobState {
         synchronized (monitor) {
             this.status = "FAILED";
             this.exitCode = response.exitCode();
-            this.output = truncate(response.output());
-            this.error = truncate(response.error());
+            this.output = response.output();
+            this.error = response.error();
             this.message = message;
             this.report = response.report() == null ? emptyReport() : response.report();
             this.finishedAt = Instant.now();
@@ -95,16 +93,6 @@ public final class SparrowJobState {
             "",
             new SparrowAnalyzeSummary(0, 0, Collections.emptyMap(), Collections.emptyMap()), Collections.emptyList()
         );
-    }
-
-    private static String truncate(String value) {
-        if (value == null) {
-            return "";
-        }
-        if (value.length() <= MAX_LOG_LENGTH) {
-            return value;
-        }
-        return value.substring(0, MAX_LOG_LENGTH) + System.lineSeparator() + "...(truncated)";
     }
 
     public boolean isTerminal() {

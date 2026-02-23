@@ -25,6 +25,8 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import jakarta.annotation.PreDestroy;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -38,8 +40,8 @@ import org.w3c.dom.NodeList;
  */
 @Service
 public class SparrowAnalyzeService {
-
-    private static final int MAX_PROCESS_LOG_LENGTH = 4000;
+    private static final Pattern ANALYSIS_SUMMARY_URL_PATTERN =
+            Pattern.compile("https?://\\S+/scans/\\d+/info");
 
     private final ExecutorService executor = Executors.newCachedThreadPool();
     private final Map<String, SparrowJobState> jobs = new ConcurrentHashMap<>();
@@ -90,9 +92,10 @@ public class SparrowAnalyzeService {
 
             int exitCode = process.waitFor();
             SparrowAnalyzeReport report = parseReport(processBuilder.directory().toPath());
+            String summaryUrl = extractAnalysisSummaryUrl(output, error);
+            String normalizedOutput = summaryUrl.isBlank() ? output : summaryUrl;
 
-            // stdout is usually too noisy for MCP responses; keep it empty and preserve only concise stderr.
-            return new SparrowAnalyzeResponse(request.projectId(), exitCode, "", error, report);
+            return new SparrowAnalyzeResponse(request.projectId(), exitCode, normalizedOutput, error, report);
         } catch (IOException ex) {
             throw new SparrowExecutionException("Failed to execute SPARROW client", ex);
         } catch (InterruptedException ex) {
@@ -175,16 +178,29 @@ public class SparrowAnalyzeService {
             new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
             String line;
             while ((line = reader.readLine()) != null) {
-                if (result.length() >= MAX_PROCESS_LOG_LENGTH) {
-                    continue;
-                }
                 result.append(line).append(System.lineSeparator());
             }
         }
-        if (result.length() <= MAX_PROCESS_LOG_LENGTH) {
-            return result.toString();
+        return result.toString();
+    }
+
+    private String extractAnalysisSummaryUrl(String output, String error) {
+        String fromOutput = extractAnalysisSummaryUrl(output);
+        if (!fromOutput.isBlank()) {
+            return fromOutput;
         }
-        return result.substring(0, MAX_PROCESS_LOG_LENGTH) + System.lineSeparator() + "...(truncated)";
+        return extractAnalysisSummaryUrl(error);
+    }
+
+    private String extractAnalysisSummaryUrl(String text) {
+        if (text == null || text.isBlank()) {
+            return "";
+        }
+        Matcher matcher = ANALYSIS_SUMMARY_URL_PATTERN.matcher(text);
+        if (!matcher.find()) {
+            return "";
+        }
+        return matcher.group();
     }
 
     private SparrowAnalyzeReport parseReport(Path workingDirectory) {
