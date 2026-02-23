@@ -1,6 +1,7 @@
 package com.mcp_server.sabang.model;
 
 import com.mcp_server.sabang.dto.SparrowAnalyzeJobStatusResponse;
+import com.mcp_server.sabang.dto.SparrowAnalyzeReport;
 import com.mcp_server.sabang.dto.SparrowAnalyzeResponse;
 import java.time.Instant;
 
@@ -16,6 +17,7 @@ public final class SparrowJobState {
     private volatile String output;
     private volatile String error;
     private volatile String message;
+    private volatile SparrowAnalyzeReport report;
 
     private SparrowJobState(String jobId, String projectId) {
         this.jobId = jobId;
@@ -28,6 +30,7 @@ public final class SparrowJobState {
         this.output = "";
         this.error = "";
         this.message = "";
+        this.report = null;
     }
 
     public static SparrowJobState pending(String jobId, String projectId) {
@@ -52,6 +55,7 @@ public final class SparrowJobState {
             this.exitCode = response.exitCode();
             this.output = response.output();
             this.error = response.error();
+            this.report = response.report();
             this.finishedAt = Instant.now();
             monitor.notifyAll();
         }
@@ -64,6 +68,7 @@ public final class SparrowJobState {
             this.output = response.output();
             this.error = response.error();
             this.message = message;
+            this.report = response.report();
             this.finishedAt = Instant.now();
             monitor.notifyAll();
         }
@@ -106,7 +111,8 @@ public final class SparrowJobState {
                 exitCode,
                 output,
                 error,
-                message
+                message,
+                report
         );
     }
 }
