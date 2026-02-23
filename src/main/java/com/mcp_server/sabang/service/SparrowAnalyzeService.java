@@ -38,9 +38,6 @@ import org.w3c.dom.NodeList;
  */
 @Service
 public class SparrowAnalyzeService {
-
-    private static final int MAX_PROCESS_LOG_LENGTH = 4000;
-
     private final ExecutorService executor = Executors.newCachedThreadPool();
     private final Map<String, SparrowJobState> jobs = new ConcurrentHashMap<>();
 
@@ -91,8 +88,7 @@ public class SparrowAnalyzeService {
             int exitCode = process.waitFor();
             SparrowAnalyzeReport report = parseReport(processBuilder.directory().toPath());
 
-            // stdout is usually too noisy for MCP responses; keep it empty and preserve only concise stderr.
-            return new SparrowAnalyzeResponse(request.projectId(), exitCode, "", error, report);
+            return new SparrowAnalyzeResponse(request.projectId(), exitCode, output, error, report);
         } catch (IOException ex) {
             throw new SparrowExecutionException("Failed to execute SPARROW client", ex);
         } catch (InterruptedException ex) {
@@ -175,16 +171,10 @@ public class SparrowAnalyzeService {
             new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
             String line;
             while ((line = reader.readLine()) != null) {
-                if (result.length() >= MAX_PROCESS_LOG_LENGTH) {
-                    continue;
-                }
                 result.append(line).append(System.lineSeparator());
             }
         }
-        if (result.length() <= MAX_PROCESS_LOG_LENGTH) {
-            return result.toString();
-        }
-        return result.substring(0, MAX_PROCESS_LOG_LENGTH) + System.lineSeparator() + "...(truncated)";
+        return result.toString();
     }
 
     private SparrowAnalyzeReport parseReport(Path workingDirectory) {
