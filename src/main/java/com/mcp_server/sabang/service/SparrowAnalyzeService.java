@@ -18,6 +18,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +28,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 import jakarta.annotation.PreDestroy;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -204,7 +206,7 @@ public class SparrowAnalyzeService {
     }
 
     private SparrowAnalyzeReport parseReport(Path workingDirectory) {
-        Path reportPath = workingDirectory.resolve("sparrow").resolve("xml_files").resolve("FINCH_SYN.1.0.xml");
+        Path reportPath = resolveReportPath(workingDirectory);
         if (!Files.exists(reportPath)) {
             return new SparrowAnalyzeReport(reportPath.toString(), emptySummary(), Collections.emptyList());
         }
@@ -271,6 +273,35 @@ public class SparrowAnalyzeService {
             return new SparrowAnalyzeReport(reportPath.toString(), summary, issues);
         } catch (Exception ex) {
             throw new SparrowExecutionException("Failed to parse SPARROW XML report: " + reportPath, ex);
+        }
+    }
+
+    private Path resolveReportPath(Path workingDirectory) {
+        Path xmlDirectory = workingDirectory.resolve("sparrow").resolve("xml_files");
+        Path defaultReportPath = xmlDirectory.resolve("FINCH_SYN.1.0.xml");
+        if (Files.exists(defaultReportPath)) {
+            return defaultReportPath;
+        }
+        if (!Files.isDirectory(xmlDirectory)) {
+            return defaultReportPath;
+        }
+
+        try (Stream<Path> candidates = Files.list(xmlDirectory)) {
+            return candidates
+                .filter(path -> Files.isRegularFile(path) && path.getFileName().toString().endsWith(".xml"))
+                .max(Comparator.comparing(this::lastModifiedOrZero)
+                    .thenComparing(path -> path.getFileName().toString()))
+                .orElse(defaultReportPath);
+        } catch (IOException ex) {
+            return defaultReportPath;
+        }
+    }
+
+    private long lastModifiedOrZero(Path path) {
+        try {
+            return Files.getLastModifiedTime(path).toMillis();
+        } catch (IOException ex) {
+            return 0L;
         }
     }
 
