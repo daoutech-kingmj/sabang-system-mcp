@@ -112,7 +112,7 @@ java -jar build/libs/sabang-0.0.1-SNAPSHOT.jar
   - `passwordPath`
   - `projectId`
   - `username`
-  - `changedFiles` (절대경로 `:` 구분)
+  - `changedFiles` (절대경로 배열)
 - 출력: `jobId`, `projectId`, `status(PENDING)`
 
 2. `sparrow-analyze-status`

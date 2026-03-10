@@ -136,8 +136,13 @@ public class SparrowAnalyzeService {
         if (request.passwordPath() == null || request.passwordPath().isBlank()) {
             throw new SparrowExecutionException("Password path is required");
         }
-        if (request.changedFiles() == null || request.changedFiles().isBlank()) {
+        if (request.changedFiles() == null || request.changedFiles().isEmpty()) {
             throw new SparrowExecutionException("Changed files list is required");
+        }
+        for (String changedFile : request.changedFiles()) {
+            if (changedFile == null || changedFile.isBlank()) {
+                throw new SparrowExecutionException("Changed files list contains a blank path");
+            }
         }
     }
 
@@ -153,7 +158,7 @@ public class SparrowAnalyzeService {
         command.add("-PW");
         command.add(request.passwordPath());
         command.add("-SD");
-        command.add(request.changedFiles());
+        command.add(String.join(File.pathSeparator, request.changedFiles()));
 
         return command;
     }
