@@ -1,5 +1,6 @@
 package com.mcp_server.sabang.dto;
 
+import java.util.List;
 import org.springaicommunity.mcp.annotation.McpToolParam;
 
 public record SparrowAnalyzeRequest(
@@ -8,8 +9,8 @@ public record SparrowAnalyzeRequest(
     @McpToolParam(description = "Path to password file") String passwordPath,
     @McpToolParam(description = "SPARROW Project ID") String projectId,
     @McpToolParam(description = "SPARROW username") String username,
-    @McpToolParam(description = "Colon-separated list of changed Java files, each specified as an absolute filesystem path Example: /home/ci/workspace/project/src/main/java/A.java:/home/ci/workspace/project/src/main/java/B.java")
-    String changedFiles
+    @McpToolParam(description = "List of changed Java files, each specified as an absolute filesystem path")
+    List<String> changedFiles
 ) {
 
 }
