@@ -8,3 +8,15 @@ spring:
       server:
         stdio: true
         keep-alive-interval: 5s
+
+grafana:
+  host: ${GRAFANA_HOST:}
+  username: ${GRAFANA_USERNAME:}
+  password: ${GRAFANA_PASSWORD:}
+
+pinpoint:
+  host: ${PINPOINT_HOST:}
+
+jennifer:
+  host: ${JENNIFER_HOST:}
+  token: ${JENNIFER_TOKEN:}
