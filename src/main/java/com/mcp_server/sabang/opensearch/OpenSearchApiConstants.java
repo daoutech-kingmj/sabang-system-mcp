@@ -6,6 +6,7 @@ public final class OpenSearchApiConstants {
     }
 
     public static final String SQL_PATH = "/_plugins/_sql";
+    public static final String SEARCH_PATH = "/%s/_search";
     public static final String CAT_INDICES_PATH = "/_cat/indices?format=json&h=index,health,status,docs.count,store.size";
     public static final String MAPPING_PATH = "/%s/_mapping";
 

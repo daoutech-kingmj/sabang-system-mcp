@@ -7,6 +7,8 @@ import com.mcp_server.sabang.dto.OpenSearchGetMappingResponse;
 import com.mcp_server.sabang.dto.OpenSearchListIndicesRequest;
 import com.mcp_server.sabang.dto.OpenSearchListIndicesResponse;
 import com.mcp_server.sabang.dto.OpenSearchListIndicesResponse.IndexInfo;
+import com.mcp_server.sabang.dto.OpenSearchDslQueryRequest;
+import com.mcp_server.sabang.dto.OpenSearchDslQueryResponse;
 import com.mcp_server.sabang.dto.OpenSearchSqlQueryRequest;
 import com.mcp_server.sabang.dto.OpenSearchSqlQueryResponse;
 import com.mcp_server.sabang.opensearch.OpenSearchApiClient;
@@ -81,6 +83,43 @@ public class OpenSearchService {
         }
 
         return new OpenSearchListIndicesResponse(indices);
+    }
+
+    @SuppressWarnings("unchecked")
+    public OpenSearchDslQueryResponse executeDslQuery(OpenSearchDslQueryRequest request) {
+        String path = String.format(SEARCH_PATH, request.index());
+        JsonNode response = apiClient.post(path, request.dslBody());
+
+        int totalHits = 0;
+        List<Map<String, Object>> hits = new ArrayList<>();
+        Map<String, Object> aggregations = Map.of();
+
+        JsonNode hitsNode = response.path("hits");
+        if (!hitsNode.isMissingNode()) {
+            JsonNode totalNode = hitsNode.path("total");
+            if (totalNode.has("value")) {
+                totalHits = totalNode.get("value").asInt();
+            }
+
+            for (JsonNode hit : hitsNode.path("hits")) {
+                Map<String, Object> hitMap = new LinkedHashMap<>();
+                hitMap.put("_id", hit.path("_id").asText());
+                if (hit.has("_source")) {
+                    hitMap.put("_source", objectMapper.convertValue(hit.get("_source"), Map.class));
+                }
+                if (hit.has("highlight")) {
+                    hitMap.put("highlight", objectMapper.convertValue(hit.get("highlight"), Map.class));
+                }
+                hits.add(hitMap);
+            }
+        }
+
+        JsonNode aggsNode = response.path("aggregations");
+        if (!aggsNode.isMissingNode()) {
+            aggregations = objectMapper.convertValue(aggsNode, Map.class);
+        }
+
+        return new OpenSearchDslQueryResponse(request.index(), totalHits, hits, aggregations);
     }
 
     @SuppressWarnings("unchecked")
