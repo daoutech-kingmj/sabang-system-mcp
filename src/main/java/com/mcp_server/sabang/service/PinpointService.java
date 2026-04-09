@@ -109,21 +109,32 @@ public class PinpointService {
             return new PinpointGetErrorTransactionsResponse(request.applicationName(), 0, List.of());
         }
 
-        // 2. Get histogram time series to find error windows
-        String histPath = String.format(
-            "%s?applicationName=%s&serviceTypeName=%s&from=%d&to=%d",
-            RESPONSE_HISTOGRAM_PATH,
-            encode(request.applicationName()),
-            encode(serviceTypeName),
-            request.from(),
-            request.to()
-        );
-        JsonNode histResponse = apiClient.get(histPath);
+        // 2. Get histogram time series to find error windows (chunked for Pinpoint PT48H limit)
+        long CHUNK_MS = 48 * 60 * 60 * 1000L;
+        List<ErrorWindow> errorWindows = new ArrayList<>();
 
-        // 3. Extract time windows where errors occurred
-        List<ErrorWindow> errorWindows = extractErrorTimeWindows(
-            histResponse.path("timeSeries"), request.agentId()
-        );
+        long chunkFrom = request.from();
+        while (chunkFrom < request.to()) {
+            long chunkTo = Math.min(chunkFrom + CHUNK_MS, request.to());
+
+            String histPath = String.format(
+                "%s?applicationName=%s&serviceTypeName=%s&from=%d&to=%d",
+                RESPONSE_HISTOGRAM_PATH,
+                encode(request.applicationName()),
+                encode(serviceTypeName),
+                chunkFrom,
+                chunkTo
+            );
+            JsonNode histResponse = apiClient.get(histPath);
+
+            errorWindows.addAll(extractErrorTimeWindows(
+                histResponse.path("timeSeries"), request.agentId()
+            ));
+
+            chunkFrom = chunkTo;
+        }
+
+        // 3. Check if any error windows were found
         if (errorWindows.isEmpty()) {
             return new PinpointGetErrorTransactionsResponse(request.applicationName(), 0, List.of());
         }
